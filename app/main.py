@@ -2,11 +2,12 @@ import json
 import time
 import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.responses import StreamingResponse
 
 from app import mock_model
 from app.schemas import ChatRequest
+from app.auth import require_api_key
 
 app = FastAPI(title="Multicloud LLM Gateway", version="0.1.0")
 
@@ -51,7 +52,7 @@ async def sse_stream(req: ChatRequest):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(req: ChatRequest):
+async def chat_completions(req: ChatRequest, api_key: str = Depends(require_api_key)):
     if req.stream:
         return StreamingResponse(sse_stream(req), media_type="text/event-stream")
 
