@@ -1,7 +1,9 @@
+import json
 import time
 import uuid
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 
 from app import mock_model
 from app.schemas import ChatRequest
@@ -21,15 +23,44 @@ def readyz():
     return {"status": "ready"}
 
 
+def new_chat_id() -> str:
+    return f"chatcmpl-{uuid.uuid4().hex[:12]}"
+
+
+async def sse_stream(req: ChatRequest):
+    chat_id = new_chat_id()
+    created = int(time.time())
+
+    def chunk(delta: dict, finish_reason=None) -> str:
+        payload = {
+            "id": chat_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": req.model,
+            "choices": [
+                {"index": 0, "delta": delta, "finish_reason": finish_reason}
+            ],
+        }
+        return f"data: {json.dumps(payload)}\n\n"
+
+    yield chunk({"role": "assistant"})
+    async for piece in mock_model.stream(req.messages):
+        yield chunk({"content": piece})
+    yield chunk({}, finish_reason="stop")
+    yield "data: [DONE]\n\n"
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatRequest):
-    text = await mock_model.generate(req.messages)
+    if req.stream:
+        return StreamingResponse(sse_stream(req), media_type="text/event-stream")
 
+    text = await mock_model.generate(req.messages)
     prompt_tokens = sum(len(m.content.split()) for m in req.messages)
     completion_tokens = len(text.split())
 
     return {
-        "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
+        "id": new_chat_id(),
         "object": "chat.completion",
         "created": int(time.time()),
         "model": req.model,
