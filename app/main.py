@@ -13,6 +13,7 @@ from app.logging_setup import setup_logging
 from app.rate_limit import enforce_rate_limit
 from app.schemas import ChatRequest
 from app.metrics import LATENCY, REQUESTS, render_metrics
+from app.resilience import ModelTimeout, call_model
 
 setup_logging()
 log = logging.getLogger("gateway")
@@ -111,9 +112,12 @@ async def chat_completions(req: ChatRequest, api_key: str = Depends(enforce_rate
         return StreamingResponse(sse_stream(req), media_type="text/event-stream")
 
     try:
-        text = await mock_model.generate(req.messages)
+        text = await call_model(req.messages)
+    except ModelTimeout:
+        raise HTTPException(status_code=504, detail="Model backend timed out")
     except mock_model.ModelError:
         raise HTTPException(status_code=502, detail="Model backend error")
+    
     prompt_tokens = sum(len(m.content.split()) for m in req.messages)
     completion_tokens = len(text.split())
 

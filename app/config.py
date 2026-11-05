@@ -20,3 +20,6 @@ def mock_latency_seconds() -> float:
 
 def mock_failure_rate() -> float:
     return float(os.getenv("MOCK_FAILURE_RATE", "0.0"))
+
+def model_timeout_seconds() -> float:
+    return float(os.getenv("MODEL_TIMEOUT_SECONDS", "2.0"))
