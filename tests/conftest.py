@@ -10,7 +10,13 @@ TEST_KEY = "test-key-123"
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv("GATEWAY_API_KEYS", TEST_KEY)
-    # Fresh, generous limiter for each test so tests don't affect each other
+
+    for var in [
+        "MOCK_FAILURE_RATE", "MOCK_LATENCY_SECONDS", "MODEL_TIMEOUT_SECONDS",
+        "MODEL_MAX_RETRIES", "RETRY_BASE_DELAY_SECONDS",
+    ]:
+        monkeypatch.delenv(var, raising=False)
+
     monkeypatch.setattr(
         rate_limit, "limiter",
         rate_limit.TokenBucketLimiter(rate_per_sec=0.001, burst=100),
