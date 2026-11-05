@@ -13,7 +13,7 @@ from app.logging_setup import setup_logging
 from app.rate_limit import enforce_rate_limit
 from app.schemas import ChatRequest
 from app.metrics import LATENCY, REQUESTS, render_metrics
-from app.resilience import ModelTimeout, call_model
+from app.resilience import CircuitOpen, ModelTimeout, breaker, call_model
 
 setup_logging()
 log = logging.getLogger("gateway")
@@ -72,7 +72,7 @@ def healthz():
 @app.get("/readyz")
 def readyz():
     """Readiness: is it ready to accept traffic?"""
-    return {"status": "ready"}
+    return {"status": "ready", "model_circuit": breaker.state}
 
 @app.get("/metrics")
 def metrics():
@@ -113,6 +113,12 @@ async def chat_completions(req: ChatRequest, api_key: str = Depends(enforce_rate
 
     try:
         text = await call_model(req.messages)
+    except CircuitOpen as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Model backend unavailable, circuit open",
+            headers={"Retry-After": str(max(1, int(exc.retry_after) + 1))},
+        )
     except ModelTimeout:
         raise HTTPException(status_code=504, detail="Model backend timed out")
     except mock_model.ModelError:

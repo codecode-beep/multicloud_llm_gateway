@@ -34,3 +34,10 @@ def retry_base_delay_seconds() -> float:
 
 def retry_max_delay_seconds() -> float:
     return float(os.getenv("RETRY_MAX_DELAY_SECONDS", "2.0"))
+
+def cb_failure_threshold() -> int:
+    return int(os.getenv("CB_FAILURE_THRESHOLD", "5"))
+
+
+def cb_recovery_seconds() -> float:
+    return float(os.getenv("CB_RECOVERY_SECONDS", "10"))

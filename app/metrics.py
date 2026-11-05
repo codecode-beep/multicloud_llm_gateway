@@ -1,4 +1,5 @@
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
 
 REQUESTS = Counter(
     "gateway_requests_total",
@@ -17,6 +18,11 @@ MODEL_RETRIES = Counter(
     "gateway_model_retries_total",
     "Model calls that failed and were retried",
     ["reason"],
+)
+
+CIRCUIT_STATE = Gauge(
+    "gateway_circuit_state",
+    "Model circuit breaker state: 0=closed, 1=half_open, 2=open",
 )
 
 def render_metrics():
