@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from app import mock_model
 from app.schemas import ChatRequest
 from app.auth import require_api_key
+from app.rate_limit import enforce_rate_limit
 
 app = FastAPI(title="Multicloud LLM Gateway", version="0.1.0")
 
@@ -52,7 +53,7 @@ async def sse_stream(req: ChatRequest):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(req: ChatRequest, api_key: str = Depends(require_api_key)):
+async def chat_completions(req: ChatRequest, api_key: str = Depends(enforce_rate_limit)):
     if req.stream:
         return StreamingResponse(sse_stream(req), media_type="text/event-stream")
 
