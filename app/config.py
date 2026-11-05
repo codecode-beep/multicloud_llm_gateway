@@ -23,3 +23,14 @@ def mock_failure_rate() -> float:
 
 def model_timeout_seconds() -> float:
     return float(os.getenv("MODEL_TIMEOUT_SECONDS", "2.0"))
+
+def model_max_retries() -> int:
+    return int(os.getenv("MODEL_MAX_RETRIES", "2"))
+
+
+def retry_base_delay_seconds() -> float:
+    return float(os.getenv("RETRY_BASE_DELAY_SECONDS", "0.1"))
+
+
+def retry_max_delay_seconds() -> float:
+    return float(os.getenv("RETRY_MAX_DELAY_SECONDS", "2.0"))

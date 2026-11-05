@@ -13,6 +13,11 @@ LATENCY = Histogram(
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
 )
 
+MODEL_RETRIES = Counter(
+    "gateway_model_retries_total",
+    "Model calls that failed and were retried",
+    ["reason"],
+)
 
 def render_metrics():
     return generate_latest(), CONTENT_TYPE_LATEST
