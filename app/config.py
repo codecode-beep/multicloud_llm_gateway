@@ -13,3 +13,10 @@ def rate_limit_per_minute() -> float:
 
 def rate_limit_burst() -> int:
     return int(os.getenv("RATE_LIMIT_BURST", "10"))
+
+def mock_latency_seconds() -> float:
+    return float(os.getenv("MOCK_LATENCY_SECONDS", "0.2"))
+
+
+def mock_failure_rate() -> float:
+    return float(os.getenv("MOCK_FAILURE_RATE", "0.0"))

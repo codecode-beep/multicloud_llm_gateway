@@ -1,19 +1,25 @@
 import asyncio
-from typing import List,AsyncIterator
+import random
+from typing import AsyncIterator, List
 
+from app.config import mock_failure_rate, mock_latency_seconds
 from app.schemas import Message
 
 
+class ModelError(Exception):
+    """The model backend failed, like a 500 error from a real AI provider."""
+
 
 async def generate(messages: List[Message]) -> str:
-    last = messages[-1].content
-    await asyncio.sleep(0.2)  # pretend the model is thinking
-    return f"Mock reply to: {last}"
+    await asyncio.sleep(mock_latency_seconds())
+    if random.random() < mock_failure_rate():
+        raise ModelError("mock model failure")
+    return f"Mock reply to: {messages[-1].content}"
 
 
 async def stream(messages: List[Message]) -> AsyncIterator[str]:
     text = f"Mock reply to: {messages[-1].content}"
     words = text.split(" ")
     for i, word in enumerate(words):
-        await asyncio.sleep(0.05)  # pretend each word takes time to generate
+        await asyncio.sleep(0.05)
         yield word if i == 0 else " " + word
