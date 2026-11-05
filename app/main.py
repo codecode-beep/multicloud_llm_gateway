@@ -1,16 +1,57 @@
+import hashlib
 import json
+import logging
 import time
 import uuid
+from typing import Optional
 
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import StreamingResponse
 
 from app import mock_model
-from app.schemas import ChatRequest
-from app.auth import require_api_key
+from app.logging_setup import setup_logging
 from app.rate_limit import enforce_rate_limit
+from app.schemas import ChatRequest
+
+setup_logging()
+log = logging.getLogger("gateway")
 
 app = FastAPI(title="Multicloud LLM Gateway", version="0.1.0")
+
+
+def key_fingerprint(auth_header: Optional[str]) -> Optional[str]:
+    """Short, non-reversible ID for an API key, safe to log."""
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[len("Bearer "):].strip()
+    return hashlib.sha256(token.encode()).hexdigest()[:8]
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = (request.headers.get("x-request-id") or uuid.uuid4().hex)[:64]
+    start = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        log.info(
+            "request",
+            extra={
+                "fields": {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": status_code,
+                    "latency_ms": round((time.perf_counter() - start) * 1000, 1),
+                    "key_id": key_fingerprint(request.headers.get("authorization")),
+                    "client": request.client.host if request.client else None,
+                }
+            },
+        )
 
 
 @app.get("/healthz")
