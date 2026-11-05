@@ -5,13 +5,14 @@ import time
 import uuid
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app import mock_model
 from app.logging_setup import setup_logging
 from app.rate_limit import enforce_rate_limit
 from app.schemas import ChatRequest
+from app.metrics import LATENCY, REQUESTS, render_metrics
 
 setup_logging()
 log = logging.getLogger("gateway")
@@ -38,6 +39,13 @@ async def log_requests(request: Request, call_next):
         response.headers["X-Request-ID"] = request_id
         return response
     finally:
+        elapsed = time.perf_counter() - start
+
+        route = request.scope.get("route")
+        route_label = route.path if route else "unmatched"
+        REQUESTS.labels(request.method, route_label, str(status_code)).inc()
+        LATENCY.labels(request.method, route_label).observe(elapsed)
+
         log.info(
             "request",
             extra={
@@ -46,7 +54,7 @@ async def log_requests(request: Request, call_next):
                     "method": request.method,
                     "path": request.url.path,
                     "status": status_code,
-                    "latency_ms": round((time.perf_counter() - start) * 1000, 1),
+                    "latency_ms": round(elapsed * 1000, 1),
                     "key_id": key_fingerprint(request.headers.get("authorization")),
                     "client": request.client.host if request.client else None,
                 }
@@ -65,6 +73,10 @@ def readyz():
     """Readiness: is it ready to accept traffic?"""
     return {"status": "ready"}
 
+@app.get("/metrics")
+def metrics():
+    body, content_type = render_metrics()
+    return Response(content=body, media_type=content_type)
 
 def new_chat_id() -> str:
     return f"chatcmpl-{uuid.uuid4().hex[:12]}"
