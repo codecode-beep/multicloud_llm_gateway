@@ -1,0 +1,31 @@
+replicaCount: 2
+
+image:
+  repository: llm-gateway
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Never put real keys here. Pass them at install time:
+#   helm install ... --set apiKeys=your-key
+apiKeys: ""
+
+config:
+  RATE_LIMIT_PER_MINUTE: "60"
+  RATE_LIMIT_BURST: "10"
+  MODEL_TIMEOUT_SECONDS: "2.0"
+  MODEL_MAX_RETRIES: "2"
+  CB_FAILURE_THRESHOLD: "5"
+  CB_RECOVERY_SECONDS: "10"
+  MOCK_LATENCY_SECONDS: "0.2"
+  MOCK_FAILURE_RATE: "0.0"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
